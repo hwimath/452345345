@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>휘매쓰 대소 비교 챌린지!</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ece9e6, #ffffff);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .hidden {
+            display: none;
+        }
+        #start-screen, #game-screen, #end-screen {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        #start-screen h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .difficulty-button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #4CAF50;
+            color: white;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .difficulty-button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+        #game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            color: #333;
+        }
+        #energy-bar {
+            width: 100%;
+            height: 25px;
+            background-color: #ddd;
+            border-radius: 12.5px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+        }
+        #energy {
+            height: 100%;
+            width: 100%;
+            background-color: #76c7c0;
+            transition: width 0.1s linear;
+        }
+        #question {
+            font-size: 1.8em;
+            margin-bottom: 25px;
+            color: #333;
+        }
+        .option-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 1.3em;
+            cursor: pointer;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            background-color: white;
+            transition: background-color 0.3s, border-color 0.3s, transform 0.2s;
+        }
+        .option-button:hover {
+            background-color: #f1f1f1;
+            border-color: #45a049;
+            transform: scale(1.02);
+        }
+        #score, #lives, #game-time {
+            font-size: 1.2em;
+            color: #333;
+        }
+        #end-screen h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        #end-screen p {
+            font-size: 1.3em;
+            margin: 10px 0;
+            color: #555;
+        }
+        #restart-button {
+            padding: 15px 30px;
+            margin-top: 25px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #2196F3;
+            color: white;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        #restart-button:hover {
+            background-color: #0b7dda;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1>휘매쓰 대소 비교 챌린지!</h1>
+        <p>난이도를 선택하세요:</p>
+        <button class="difficulty-button" data-difficulty="최상">최상</button>
+        <button class="difficulty-button" data-difficulty="상">상</button>
+        <button class="difficulty-button" data-difficulty="중">중</button>
+        <button class="difficulty-button" data-difficulty="하">하</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="hidden">
+        <div id="game-info">
+            <div id="score">점수: 0</div>
+            <div id="lives">남은 기회: 3</div>
+            <div id="game-time">총 시간: 0초</div>
+        </div>
+        <div id="energy-bar">
+            <div id="energy"></div>
+        </div>
+        <div id="question"></div>
+        <div id="options">
+            <button class="option-button" data-option="1"></button>
+            <button class="option-button" data-option="2"></button>
+        </div>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="hidden">
+        <h2>게임 종료!</h2>
+        <p id="final-score">최종 점수: 0</p>
+        <p id="final-time">총 시간: 0초</p>
+        <button id="restart-button">다시 시작</button>
+    </div>
+
+    <script>
+        // 초기 변수 설정
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+        const difficultyButtons = document.querySelectorAll('.difficulty-button');
+        const scoreDisplay = document.getElementById('score');
+        const livesDisplay = document.getElementById('lives');
+        const gameTimeDisplay = document.getElementById('game-time');
+        const energyBar = document.getElementById('energy');
+        const questionElement = document.getElementById('question');
+        const optionButtons = document.querySelectorAll('.option-button');
+        const finalScore = document.getElementById('final-score');
+        const finalTime = document.getElementById('final-time');
+        const restartButton = document.getElementById('restart-button');
+
+        let difficulty;
+        let timePerQuestion;
+        let score = 0;
+        let lives = 3;
+        let totalGameTime = 0;
+        let questionTimer;
+        let overallTimer;
+        let currentQuestion;
+        let correctAnswer;
+        let speedMultiplier = 1;
+
+        // 난이도 설정
+        const difficultySettings = {
+            '최상': { time: 20, points: 20 },
+            '상': { time: 30, points: 15 },
+            '중': { time: 40, points: 13 },
+            '하': { time: null, points: 10 }
+        };
+
+        // 시작 화면에서 난이도 선택
+        difficultyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                difficulty = button.getAttribute('data-difficulty');
+                timePerQuestion = difficultySettings[difficulty].time;
+                score = 0;
+                lives = 3;
+                totalGameTime = 0;
+                speedMultiplier = 1;
+                updateDisplay();
+                startScreen.classList.add('hidden');
+                gameScreen.classList.remove('hidden');
+                startOverallTimer();
+                generateQuestion();
+            });
+        });
+
+        // 전체 게임 시간 타이머
+        function startOverallTimer() {
+            overallTimer = setInterval(() => {
+                totalGameTime++;
+                gameTimeDisplay.textContent = `총 시간: ${totalGameTime}초`;
+            }, 1000);
+        }
+
+        // 게임 종료
+        function endGame() {
+            clearInterval(overallTimer);
+            clearInterval(questionTimer);
+            finalScore.textContent = `최종 점수: ${score}`;
+            finalTime.textContent = `총 시간: ${totalGameTime}초`;
+            gameScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+        }
+
+        // 재시작 버튼
+        restartButton.addEventListener('click', () => {
+            endScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        });
+
+        // 점수 및 생명 업데이트
+        function updateDisplay() {
+            scoreDisplay.textContent = `점수: ${score}`;
+            livesDisplay.textContent = `남은 기회: ${lives}`;
+        }
+
+        // 에너지 바 초기화
+        function resetEnergyBar() {
+            energyBar.style.width = '100%';
+        }
+
+        // 질문 생성
+        function generateQuestion() {
+            resetEnergyBar();
+            if (timePerQuestion) {
+                let duration = (timePerQuestion / speedMultiplier) * 1000;
+                let startTime = Date.now();
+                questionTimer = setInterval(() => {
+                    let elapsed = Date.now() - startTime;
+                    let percentage = Math.max(100 - (elapsed / duration) * 100, 0);
+                    energyBar.style.width = `${percentage}%`;
+                    if (elapsed >= duration) {
+                        clearInterval(questionTimer);
+                        handleTimeout();
+                    }
+                }, 100);
+            }
+
+            // 두 개의 소수를 생성 (차이가 너무 크지 않도록 설정)
+            let num1, num2;
+            do {
+                num1 = generateDecimal();
+                num2 = generateDecimal();
+            } while (Math.abs(num1 - num2) > 0.5 || num1 === num2); // 차이가 0.5 이하이고, 같지 않도록
+
+            // 두 수 중 큰 수를 정답으로 설정
+            correctAnswer = num1 > num2 ? num1 : num2;
+
+            currentQuestion = `두 수 중 큰 수를 구하여라.<br>${num1} &nbsp;&nbsp; ${num2}`;
+            questionElement.innerHTML = currentQuestion;
+
+            // 옵션 버튼에 숫자 할당
+            optionButtons.forEach((button, index) => {
+                button.textContent = index === 0 ? num1 : num2;
+                button.setAttribute('data-answer', index === 0 ? num1 : num2);
+            });
+        }
+
+        // 소수 생성 (0.1 ~ 9.9, 소수점 첫째 자리)
+        function generateDecimal() {
+            let integerPart = getRandomInt(0, 9);
+            let decimalPart = getRandomInt(1, 9); // 소수점 아래 0은 피함
+            return parseFloat(`${integerPart}.${decimalPart}`).toFixed(1);
+        }
+
+        // 시간 초과 처리
+        function handleTimeout() {
+            loseLife();
+            showCorrectAnswer();
+            generateQuestion();
+        }
+
+        // 생명 감소
+        function loseLife() {
+            lives--;
+            updateDisplay();
+            if (lives <= 0) {
+                endGame();
+            }
+        }
+
+        // 정답 표시
+        function showCorrectAnswer() {
+            alert(`시간 초과! 정답은 ${correctAnswer}입니다.`);
+        }
+
+        // 답 선택 시 처리
+        optionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                clearInterval(questionTimer);
+                const selected = parseFloat(button.getAttribute('data-answer'));
+                if (selected === parseFloat(correctAnswer)) {
+                    score += difficultySettings[difficulty].points;
+                    updateDisplay();
+                    speedMultiplier *= 1.01;
+                } else {
+                    loseLife();
+                    alert(`틀렸습니다! 정답은 ${correctAnswer}입니다.`);
+                }
+                generateQuestion();
+            });
+        });
+
+        // 배열 섞기 (셔플) - 현재는 필요 없지만 추후 확장성을 위해 유지
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // 정수 랜덤 생성
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+    </script>
+
+</body>
+</html>
